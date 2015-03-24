@@ -54,7 +54,22 @@ i)  0 + 0 = 0 == 0
 ii) (suc a) + 0 == suc (a+0)  [(1)]
 iii) a+0 == a ==> (suc a) + 0 == suc (a+0) == suc a
 -}
+
   aux1 (suc m) = cong (aux1 m)
+
+  aux2 : (m : ℕ) → m + (suc zero) ≡ suc m
+  aux2 zero = refl
+  aux2 (suc m) = cong (aux2 m)
+
+  _≡⟨_⟩_ : (x : ℕ) {y z : ℕ} → x ≡ y → y ≡ z → x ≡ z
+  x ≡⟨ refl ⟩ refl = refl
+
+  _∎ :(x : ℕ) → x ≡ x
+  x ∎ = refl
+
+
+ -- aux3 : {m n : ℕ} →  m ≡ n → m + (suc zero) ≡ n + (suc zero)
+ -- aux3 refl = refl
  
  {- incomplete commutativity, induction on a
 
@@ -64,11 +79,18 @@ iii) a + b == b + a [I.H.] ==> suc (a+b) == suc (b+a) [congruence]
 iv) suc (b + a) == (suc b) + a [(1)]
 v) suc b == b + suc 0 [aux2, TBD]
 vi) (suc b) + a == (b + suc 0) + a == b + (suc 0 + a) [associativity]
-vii) suc 0 + a == suc a [aux3, TBD] ==> (suc a) + b = b + (suc a)
+vii) suc 0 + a == suc a [(1)] ==> (suc a) + b = b + (suc a)
+
+-}
+
+
+  iterCong : {m n : ℕ}(p : ℕ) → m ≡ n → m + p ≡ n + p
+  iterCong _ refl = refl
 
 
 
   +comm : (m n : ℕ) → m + n ≡ n + m
-  +comm zero m = sym (aux1 m)
-  +comm (suc n) m = cong (+comm n m)
- -}
+  +comm zero n = sym (aux1 n)
+-- I wrote it down, looks awful, but it wroks. 
+  +comm (suc m) n = trans ( trans ( trans (trans (iterCong n (sym (aux2 m) )) (+asoc m one n)) (+comm m (suc n))) (iterCong m (sym (aux2 n))) ) (+asoc n one m)
+
