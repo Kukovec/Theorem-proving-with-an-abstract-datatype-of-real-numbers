@@ -12,26 +12,27 @@ module First where
   _+_ : ℕ → ℕ → ℕ
   zero + m = m
   (suc n) + m = suc (n + m) -- [def (1)]
+-- m(aff -x x -1, aff -x x 1) ≡ m (x -x)
 
 -- multiplication defined through addition
-  _*_ : ℕ → ℕ → ℕ
-  zero * m = zero
-  (suc n) * m = m + (n * m)
+  _nat*_ : ℕ → ℕ → ℕ
+  zero nat* m = zero
+  (suc n) nat* m = m + (n nat* m)
 
--- equivalence operator
+-- equivalence operator, polymorphic for all members of Set subtypes
   infix 4 _≡_
-  data _≡_ (m : ℕ) : ℕ → Set where
+  data _≡_ {A : Set}(m : A) : A → Set where
     refl : m ≡ m
 
 -- symmetricity
-  sym : {m n : ℕ} → m ≡ n → n ≡ m
+  sym : {A : Set}{m n : A} → m ≡ n → n ≡ m
 -- the reflexive relation x ≡ x is symetric
   sym refl = refl
 
 -- transitivity
-  trans : {m n p : ℕ} → m ≡ n → n ≡ p → m ≡ p
+  trans : {A : Set}{m n p : A} → m ≡ n → n ≡ p → m ≡ p
 -- given a reflexive first term (i.e. m is n) transitivity is self-implied
-  trans refl n≡p = n≡p
+  trans refl eq = eq
 
 -- congruence
   cong : {m n : ℕ} → m ≡ n → suc m ≡ suc n
@@ -87,10 +88,9 @@ vii) suc 0 + a == suc a [(1)] ==> (suc a) + b = b + (suc a)
   iterCong : {m n : ℕ}(p : ℕ) → m ≡ n → m + p ≡ n + p
   iterCong _ refl = refl
 
-
-
   +comm : (m n : ℕ) → m + n ≡ n + m
   +comm zero n = sym (aux1 n)
 -- I wrote it down, looks awful, but it wroks. 
   +comm (suc m) n = trans ( trans ( trans (trans (iterCong n (sym (aux2 m) )) (+asoc m one n)) (+comm m (suc n))) (iterCong m (sym (aux2 n))) ) (+asoc n one m)
+
 
