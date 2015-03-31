@@ -41,12 +41,14 @@ module Interval where
       aff t u -One ≡ t
     affLaw3 : (t u v w : AbstractInterval) →
       aff t u (m v w) ≡ m (aff t u v) (aff t u w)
+    affLaw4 :(f : AbstractInterval → AbstractInterval)
+      {x y : AbstractInterval} → f (m x y) ≡ m (f x) (f y) → f ≡ aff (f -One) (f One)
 
 -- Constants and derived operations
   Zero = m -One One
 
   neg_ :  AbstractInterval → AbstractInterval
-  neg x = aff One (-One) x
+  neg_ = aff One (-One)
 
   _*_ : AbstractInterval → AbstractInterval → AbstractInterval
   x * y = aff (neg x) x y
@@ -66,31 +68,87 @@ module Interval where
 
 -- Helper syntax
 
-  infix 100 _:also:_
+  infix 4 _:also:_
   _:also:_ : {A : Set}{x y z : A} → x ≡ y → y ≡ z → x ≡ z
   refl :also: refl = refl
 
   fcong : {A B : Set}(f : A → B){x y : A} → x ≡ y → (f x) ≡ (f y)
   fcong f refl = refl
 
+  reverseFcong : {A B : Set}{f g : A → B}(x : A) → f ≡ g → f x ≡ g x
+  reverseFcong x refl = refl
+
+  isTrue : {A : Set}(x : A) → x ≡ x
+  isTrue x = refl
+
   mCong : {a b c d : AbstractInterval} → a ≡ c → b ≡ d → m a b ≡ m c d
   mCong refl refl = refl
 
+  Id : {A : Set}(x : A) → A
+  Id x = x
+
 -- Proofs
--- a) m (neg x) x ≡ Zero
+-- neg (neg x) ≡ x
+
+  singleNeg : neg One ≡ -One
+  singleNeg = affLaw1 One -One
+
+  singleNeg2 : neg -One ≡ One
+  singleNeg2 = affLaw2 One -One
+
+  doubleNeg : AbstractInterval → AbstractInterval
+  doubleNeg x = neg (neg x)
+
+  doubleNegOne : doubleNeg One ≡ One
+  doubleNegOne = fcong (neg_) singleNeg :also: singleNeg2
+  
+
+  multipliedMidpointLemma : (x a b : AbstractInterval) → x * (m a b) ≡ m (x * a) (x * b)
+  multipliedMidpointLemma x a b = (affLaw3 (neg x) x a b)
+
+  doubleNegLemma : {y z : AbstractInterval}(x : AbstractInterval) → y ≡ z → aff y -One x ≡ aff z -One x
+  doubleNegLemma x refl = refl
+
+  negIsMultiplication : (x : AbstractInterval) → neg x ≡ -One * x
+  negIsMultiplication x = doubleNegLemma x (sym doubleNegOne)
+                          :also: doubleNegLemma x (fcong neg_ singleNeg)
+
+  doubleNegAddition : (x y : AbstractInterval) → doubleNeg (m x y) ≡ m (doubleNeg x) (doubleNeg y)
+  doubleNegAddition x y = (((((fcong (neg_) (negIsMultiplication (m x y))) :also:
+                          negIsMultiplication (-One * (m x y))) :also:
+                          fcong (_*_ -One) (multipliedMidpointLemma -One x y)) :also:
+                          (multipliedMidpointLemma -One (-One * x) (-One * y))) :also:
+                          mCong (fcong (_*_ -One) (sym (negIsMultiplication x))) (fcong (_*_ -One) (sym (negIsMultiplication y)))) :also:
+                          mCong (sym (negIsMultiplication (neg x))) (sym (negIsMultiplication (neg y)))
+
+  IdAdditive : {x y : AbstractInterval} → Id (m x y) ≡ m (Id x) (Id y)
+  IdAdditive = refl
+
+  doubleNegOk :  {x y : AbstractInterval} → doubleNeg (m x y) ≡ m (doubleNeg x) (doubleNeg y)
+  doubleNegOk = doubleNegAddition _ _
+
+  --doubleNegEquality : doubleNeg ≡ aff (doubleNeg -One) (doubleNeg One)
+  --doubleNegEquality = affLaw4 (doubleNegAddition (_) (_))
+  {-
+  doubleNegIdentity : (x : AbstractInterval) → doubleNeg x ≡ x
+  doubleNegIdentity One = doubleNegOne
+  doubleNegIdentity -One = fcong (neg_) singleNeg2 :also: singleNeg
+  doubleNegIdentity x = ((affLaw4 doubleNegOk ) ):also: (affLaw4 IdAdditive)
+  -}
+
+-- b) m (neg x) x ≡ Zero
 
   postulate *0 : (x : AbstractInterval) → x * Zero ≡ Zero
 
-  multipliedMidpoint : (x a b : AbstractInterval) → x * (m a b) ≡ m (x * a) (x * b)
-  multipliedMidpoint x a b = (affLaw3 (neg x) x a b) 
+   
 
   someLaw : (x : AbstractInterval) → m (aff (neg x) x -One) (aff (neg x) x One) ≡ m (neg x) x
   someLaw x =  mCong (affLaw2 (neg x) x) (affLaw1 (neg x) x)
   
   zeroMidpoint : (x : AbstractInterval) →  m (neg x) x ≡ Zero
-  zeroMidpoint x = sym (multipliedMidpoint x -One One :also: someLaw x):also: *0 x
+  zeroMidpoint x = sym (multipliedMidpointLemma x -One One :also: someLaw x):also: *0 x
   
--- b) x * Zero ≡ x:
+-- c) x * Zero ≡ x:
   auxTimesZero1 : (x : AbstractInterval) →
     x * Zero ≡ m (aff (neg x) x -One) (aff (neg x) x One)
   auxTimesZero1 x = affLaw3 (neg x) x -One One
@@ -105,7 +163,7 @@ module Interval where
   timesZero : (x : AbstractInterval) → x * Zero ≡ Zero
   timesZero x = (auxTimesZero1 x :also: sym (auxTimesZero2 x)) :also: (x-x x)
 
--- c) x * y ≡ y * x
+-- d) x * y ≡ y * x
 
   --timesCommutative : (x y : AbstractInterval) → x * y ≡ y * x
 --  timesCommutative x y = 
