@@ -1,12 +1,8 @@
 open import First
 
---ℕ = First.ℕ
---_≡_ = First._≡_
---zero = First.zero
-
-
 module Interval where
 
+-- Defines the interface of the abstract interval type
   data AbstractInterval : Set where
     One : AbstractInterval
     -One : AbstractInterval
@@ -15,14 +11,12 @@ module Interval where
     aff : AbstractInterval → AbstractInterval → AbstractInterval → AbstractInterval
     dbl : AbstractInterval → AbstractInterval
 
-
 -- Helper function, performs left-shifting on a sequence.
   shiftByOne :  (f : ℕ → AbstractInterval) → (n : ℕ) → AbstractInterval
   shiftByOne f n = f (suc n)
 
 -- Axioms for M, m and aff
--- TODO : MLaw2, requires implication defined
---      : affLaw4, requires if, &&, ||, etc.
+-- TODO : MLaw2, when needed
 
   postulate
     MLaw1 : (f : ℕ → AbstractInterval) →
@@ -41,8 +35,8 @@ module Interval where
       aff t u -One ≡ t
     affLaw3 : (t u v w : AbstractInterval) →
       aff t u (m v w) ≡ m (aff t u v) (aff t u w)
-    affLaw4 :(f : AbstractInterval → AbstractInterval)
-      {x y : AbstractInterval} → f (m x y) ≡ m (f x) (f y) → f ≡ aff (f -One) (f One)
+    affLaw4 :(f : AbstractInterval → AbstractInterval) → 
+      ((x y : AbstractInterval) → f (m x y) ≡ m (f x) (f y)) → f ≡ aff (f -One) (f One)
 
 -- Constants and derived operations
   Zero = m -One One
@@ -65,7 +59,6 @@ module Interval where
 
   postulate y : AbstractInterval -- Abstract member for testing
 
-
 -- Helper syntax
 
   infix 4 _:also:_
@@ -75,104 +68,153 @@ module Interval where
   fcong : {A B : Set}(f : A → B){x y : A} → x ≡ y → (f x) ≡ (f y)
   fcong f refl = refl
 
-  reverseFcong : {A B : Set}{f g : A → B}(x : A) → f ≡ g → f x ≡ g x
+  reverseFcong : {A B : Set}{f g : A → B}(x : A) → f ≡ g → (f x) ≡ (g x)
   reverseFcong x refl = refl
 
-  isTrue : {A : Set}(x : A) → x ≡ x
-  isTrue x = refl
+  doubleFcong : {A B C : Set}{a c : A}{b d : B}(f : A → B → C) →
+    a ≡ c → b ≡ d → f a b ≡ f c d
+  doubleFcong f refl refl = refl
 
   mCong : {a b c d : AbstractInterval} → a ≡ c → b ≡ d → m a b ≡ m c d
-  mCong refl refl = refl
+  mCong refl refl = doubleFcong m refl refl
 
   Id : {A : Set}(x : A) → A
   Id x = x
 
--- Proofs
--- neg (neg x) ≡ x
+  isTrue : {A : Set}(x : A) → x ≡ x
+  isTrue x = refl
 
+-- **************
+-- *   Proofs   *
+-- **************
+
+-- +-----------------+
+-- | neg (neg x) ≡ x |
+-- +-----------------+
+
+  -- Helper lemmas for base cases of applying neg to One or -One
   singleNeg : neg One ≡ -One
   singleNeg = affLaw1 One -One
 
   singleNeg2 : neg -One ≡ One
   singleNeg2 = affLaw2 One -One
-
+  
+  -- Function performing double negation
   doubleNeg : AbstractInterval → AbstractInterval
   doubleNeg x = neg (neg x)
-
-  doubleNegOne : doubleNeg One ≡ One
-  doubleNegOne = fcong (neg_) singleNeg :also: singleNeg2
   
+  -- Negation satisfies the conditions for affLaw4
+  negAddition : (x y : AbstractInterval) → neg (m x y) ≡ m (neg x) (neg y)
+  negAddition x y = affLaw3 One -One x y
 
+  -- Consequently, so does doubleNeg
+  doubleNegAddition : (x y : AbstractInterval) → doubleNeg (m x y) ≡ m (doubleNeg x) (doubleNeg y)
+  doubleNegAddition x y = fcong (neg_) (negAddition x y) :also: negAddition (neg x) (neg y)
+
+  -- After applying affLaw4, the result is:
+  doubleNegEquality : doubleNeg ≡ aff (doubleNeg -One) (doubleNeg One)
+  doubleNegEquality = affLaw4 (doubleNeg) (doubleNegAddition)
+
+  -- We now reduce doubleNeg One and doubleNeg -One to One and -One respectively
+  doubleNegIdentityOne : doubleNeg One ≡ One
+  doubleNegIdentityOne = fcong (neg_) singleNeg :also: singleNeg2
+  doubleNegIdentityNegOne : doubleNeg -One ≡ -One
+  doubleNegIdentityNegOne = fcong (neg_) singleNeg2 :also: singleNeg
+
+  -- The final law obtained gives us the connection between doubleNeg and aff
+  doubleNegReducedEquality : doubleNeg ≡ aff -One One
+  doubleNegReducedEquality =
+    doubleNegEquality :also: doubleFcong aff doubleNegIdentityNegOne doubleNegIdentityOne
+
+  -- We now prove that Id also equals Aff -One One
+
+  IdAddition : (x y : AbstractInterval) → Id (m x y) ≡ m (Id x) (Id y)
+  IdAddition x y = refl
+
+  IdEquality : Id ≡ aff -One One
+  IdEquality = affLaw4 Id IdAddition
+  
+  -- Transitivity implies doubleNeg ≡ Id and (reverse) congurence gives us doubleNeg x ≡ Id x (= x)
+  doubleNegIdentity : doubleNeg ≡ Id
+  doubleNegIdentity = doubleNegReducedEquality :also: sym IdEquality
+
+  doubleNegIdentityUse : (x : AbstractInterval) → doubleNeg x ≡ x
+  doubleNegIdentityUse x = reverseFcong x doubleNegIdentity
+ 
+-- +------------------+
+-- | neg x ≡ -One * x |
+-- +------------------+
+
+
+  -- We introduce a lemma that is a special case of congruence, to break up the actual proof
+  negMultiLemma : {y z : AbstractInterval}(x : AbstractInterval) → y ≡ z → aff y -One x ≡ aff z -One x
+  negMultiLemma x eq = reverseFcong x (doubleFcong aff eq (isTrue -One))
+  
+  negIsMultiplication : (x : AbstractInterval) → neg x ≡ -One * x
+  negIsMultiplication x = negMultiLemma x (sym (doubleNegIdentityOne)) :also: negMultiLemma x (fcong neg_ singleNeg)
+
+-- +---------------------------------+
+-- | x * (m a b) ≡ m (x * a) (x * b) |
+-- +---------------------------------+
+
+  -- Follows trivially from affLaw3
   multipliedMidpointLemma : (x a b : AbstractInterval) → x * (m a b) ≡ m (x * a) (x * b)
   multipliedMidpointLemma x a b = (affLaw3 (neg x) x a b)
+ 
+-- +--------------------+
+-- | m x (neg x) ≡ Zero |
+-- +--------------------+
 
-  doubleNegLemma : {y z : AbstractInterval}(x : AbstractInterval) → y ≡ z → aff y -One x ≡ aff z -One x
-  doubleNegLemma x refl = refl
+  -- We will prove that negMidpoint and zeroFunction defined below are equivalent
+  zeroFunction : (x : AbstractInterval) → AbstractInterval
+  zeroFunction x = Zero
 
-  negIsMultiplication : (x : AbstractInterval) → neg x ≡ -One * x
-  negIsMultiplication x = doubleNegLemma x (sym doubleNegOne)
-                          :also: doubleNegLemma x (fcong neg_ singleNeg)
+  negMidpoint : (x : AbstractInterval) → AbstractInterval
+  negMidpoint x = m x (neg x)
 
-  doubleNegAddition : (x y : AbstractInterval) → doubleNeg (m x y) ≡ m (doubleNeg x) (doubleNeg y)
-  doubleNegAddition x y = (((((fcong (neg_) (negIsMultiplication (m x y))) :also:
-                          negIsMultiplication (-One * (m x y))) :also:
-                          fcong (_*_ -One) (multipliedMidpointLemma -One x y)) :also:
-                          (multipliedMidpointLemma -One (-One * x) (-One * y))) :also:
-                          mCong (fcong (_*_ -One) (sym (negIsMultiplication x))) (fcong (_*_ -One) (sym (negIsMultiplication y)))) :also:
-                          mCong (sym (negIsMultiplication (neg x))) (sym (negIsMultiplication (neg y)))
+  -- First we show that negMidpoint and zeroFunction satisfiy the conditions to use affLaw4
+  negMidpointAddition : (x y : AbstractInterval) → negMidpoint (m x y) ≡ m (negMidpoint x) (negMidpoint y)
+  negMidpointAddition x y = fcong (m (m x y)) (negAddition x y) :also: mLaw3 x y (neg x) (neg y)
 
-  IdAdditive : {x y : AbstractInterval} → Id (m x y) ≡ m (Id x) (Id y)
-  IdAdditive = refl
+  zeroFunctionAddition : (x y : AbstractInterval) → zeroFunction (m x y) ≡ m (zeroFunction x) (zeroFunction y)
+  zeroFunctionAddition x y = sym (mLaw1 Zero)
 
-  doubleNegOk :  {x y : AbstractInterval} → doubleNeg (m x y) ≡ m (doubleNeg x) (doubleNeg y)
-  doubleNegOk = doubleNegAddition _ _
+  -- Next we show that negMidpoint maps One and -One to Zero
+  negMidpointOne : negMidpoint One ≡ Zero
+  negMidpointOne = mCong (isTrue One) singleNeg :also: mLaw2 One -One
+  negMidpointNegOne : negMidpoint -One ≡ Zero
+  negMidpointNegOne = mCong (isTrue -One) singleNeg2
 
-  --doubleNegEquality : doubleNeg ≡ aff (doubleNeg -One) (doubleNeg One)
-  --doubleNegEquality = affLaw4 (doubleNegAddition (_) (_))
-  {-
-  doubleNegIdentity : (x : AbstractInterval) → doubleNeg x ≡ x
-  doubleNegIdentity One = doubleNegOne
-  doubleNegIdentity -One = fcong (neg_) singleNeg2 :also: singleNeg
-  doubleNegIdentity x = ((affLaw4 doubleNegOk ) ):also: (affLaw4 IdAdditive)
-  -}
+  -- From that we obtain a neat expression for negMidpoint by using affLaw4 
+  negMidpointEquality : negMidpoint ≡ aff Zero Zero
+  negMidpointEquality = affLaw4 negMidpoint negMidpointAddition :also: doubleFcong aff negMidpointNegOne negMidpointOne
 
--- b) m (neg x) x ≡ Zero
+  -- Finally, we show that zeroFunction satisfies the same relation, which is trivial
+  zeroFunctionEquality : zeroFunction ≡ aff Zero Zero
+  zeroFunctionEquality = affLaw4 zeroFunction zeroFunctionAddition
 
-  postulate *0 : (x : AbstractInterval) → x * Zero ≡ Zero
+  -- Transitivity and (reverse) congruence yield the desired result
+  negMidpointIdentity : negMidpoint ≡ zeroFunction
+  negMidpointIdentity = negMidpointEquality :also: sym zeroFunctionEquality
 
-   
+  negMidpointIdentityUse : (x : AbstractInterval) → m x (neg x) ≡ Zero
+  negMidpointIdentityUse x = reverseFcong x negMidpointIdentity
 
-  someLaw : (x : AbstractInterval) → m (aff (neg x) x -One) (aff (neg x) x One) ≡ m (neg x) x
-  someLaw x =  mCong (affLaw2 (neg x) x) (affLaw1 (neg x) x)
-  
-  zeroMidpoint : (x : AbstractInterval) →  m (neg x) x ≡ Zero
-  zeroMidpoint x = sym (multipliedMidpointLemma x -One One :also: someLaw x):also: *0 x
-  
--- c) x * Zero ≡ x:
-  auxTimesZero1 : (x : AbstractInterval) →
-    x * Zero ≡ m (aff (neg x) x -One) (aff (neg x) x One)
-  auxTimesZero1 x = affLaw3 (neg x) x -One One
+-- +-----------------+
+-- | x * Zero ≡ Zero |
+-- +-----------------+
 
+  -- This proof follows from the fact that m (neg x) x ≡ Zero
+  -- First we introduce a lemma linking multiplication by zero with negMidpoint
+  timesZeroLemma : (x : AbstractInterval) → x * Zero ≡ m (neg x) x
+  timesZeroLemma x = affLaw3 (neg x) x -One One :also: mCong (affLaw2 (neg x) x) (affLaw1 (neg x) x)
 
-  auxTimesZero2 : (x : AbstractInterval) →
-    m (neg x) x ≡ m (aff (neg x) x -One) (aff (neg x) x One)
-  auxTimesZero2 x = sym (mCong (affLaw2 (neg x) x) (affLaw1 (neg x) x))
-
-  postulate x-x : (x : AbstractInterval) → m (neg x) x ≡ Zero
-  
+  -- The rest is then trivially proven with the help of mLaw2
   timesZero : (x : AbstractInterval) → x * Zero ≡ Zero
-  timesZero x = (auxTimesZero1 x :also: sym (auxTimesZero2 x)) :also: (x-x x)
+  timesZero x = timesZeroLemma x :also: (mLaw2 (neg x) x :also: negMidpointIdentityUse x) 
 
--- d) x * y ≡ y * x
+-- +---------------+
+-- | x * y ≡ y * x |
+-- +---------------+
 
-  --timesCommutative : (x y : AbstractInterval) → x * y ≡ y * x
---  timesCommutative x y = 
-
-{-
-
-x * y =def= aff (neg x) x y
-      =def= aff (aff 1 -1 x) x y
-      =m1 = aff -x x (m y y)
-      =a3 = m (aff -x x y) (aff -x x y)
-
--}
+{- TODO -}
