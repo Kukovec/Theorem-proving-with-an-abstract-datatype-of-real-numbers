@@ -347,7 +347,7 @@ module Interval where
 -- | (x * y) * z ≡ x * (y * z)|
 -- +--------------------------+
 
-  -- Fe can derive a lemma from the previous proof that suits our goal more directly
+  -- We can derive a lemma from the previous proof that suits our goal more directly
   swapNeg : (x y : AbstractInterval) → (neg x) * y ≡ x * (neg y)
   swapNeg x y =  ((multiComm (neg x) y
                  :also:
@@ -357,8 +357,8 @@ module Interval where
                  :also:
                  shiftNeg x y)
 
-  multiTrans : (x y z : AbstractInterval) → (x * y) * z ≡ x * (y * z)
-  multiTrans x y z = (affMulti (neg x) x y z
+  multiAssoc : (x y z : AbstractInterval) → (x * y) * z ≡ x * (y * z)
+  multiAssoc x y z = (affMulti (neg x) x y z
                      :also:
                      fcong (λ (t : AbstractInterval) → aff t (x * z) y) (swapNeg x z))
                      :also:
