@@ -97,9 +97,26 @@ module Functions where
   divide1 : (k r : ℕ) → pair< AbstractInterval , ℕ >
   divide1 k r = if (k ≤ r) then [ One , increment (k :natsub: r)] else [ Zero , increment r ]  -- represents 1/k with initial remainder r
 
+
+  two : ℕ
+  two = suc (suc zero)
+
+  divide : (k n : ℕ) → pair< AbstractInterval , ℕ >
+  divide k n =
+    if (n ≤ (k nat* two))
+    then [ One , (k nat* two) :natsub: n ]
+    else [ Zero , k nat* two ]
+
   fullDivision : (k r : ℕ) → ((n : ℕ) → pair< AbstractInterval , ℕ >)
   fullDivision k r zero = divide1 k r
   fullDivision k r (suc n) = divide1 k (second (fullDivision k r n))
+
+  altDivision : (k r : ℕ) → ((n : ℕ) → pair< AbstractInterval , ℕ >)
+  altDivision k r zero = divide k r
+  altDivision k r (suc n) = divide (second (altDivision k r n)) r
+
+  nValue : ℕ → ℕ → ℕ → AbstractInterval
+  nValue k r n = first (altDivision k r n)
 
   remainder : ℕ → ℕ → ℕ → ℕ
   remainder k r n = second (fullDivision k r n)
@@ -127,8 +144,15 @@ module Functions where
                else ((M (divValue (factorial i) (2^ (suc i :natsub: expOffset) -1))))
                )
 
+  altSeries  : (x : AbstractInterval) → (ℕ → AbstractInterval)
+  altSeries x i = (pow x i) * (
+               if ((suc i) ≤ expOffset)
+               then (divByPow (M (nValue one (factorial i))) (expOffset :natsub: (suc i)))
+               else ((M (divValue (factorial i) (2^ (suc i :natsub: expOffset) -1))))
+               )
+
   e^_ : AbstractInterval → AbstractInterval
-  e^ x = M (series x) -- actually 1/2^expOffset e^x, to keep the value bounded by One
+  e^ x = M (altSeries x) -- actually 1/2^expOffset e^x, to keep the value bounded by One
 
   square : ℝ → ℝ
   square x = x × x
